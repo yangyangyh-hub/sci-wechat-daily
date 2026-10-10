@@ -1,0 +1,37 @@
+# ── 凭据：绝不入库 ─────────────────────────────
+.env
+*.env
+wechat.env
+!*.env.example
+
+# ── 用户产物：不入库（每人自己的稿子与图）──────
+content_*.py
+!assets/content_template.py
+版式*.html
+图片/
+*.pdf
+解析稿-*.md
+
+# ── 中间产物 ─────────────────────────────────
+.cache/
+**/.cache/
+tmp/
+*.tmp
+
+# ── Python ───────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+envs/
+
+# ── 编辑器 / 系统 ────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 日志 ─────────────────────────────────────
+*.log
