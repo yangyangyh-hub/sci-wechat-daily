@@ -27,6 +27,7 @@
   python publish.py <成品.html> --cover path/to/cover.png
   python publish.py --list                  # 列出草稿箱
   python publish.py --delete <media_id>     # 删除某条草稿
+  python publish.py --update <media_id> --title "新标题"   # ★ 原地改标题/摘要，不重传图片
   python publish.py --check                 # 只做凭据与连通性自检
 
 ★ 前置条件：
@@ -286,9 +287,49 @@ def draft_url(token, media_id):
     return ""
 
 
+def get_article(token, media_id):
+    """取回草稿的完整 article（含正文），用于原地更新。"""
+    r = http_json(f"{API}/draft/batchget?access_token={token}",
+                  {"offset": 0, "count": 20, "no_content": 0})
+    for it in r.get("item", []):
+        if it["media_id"] == media_id:
+            return it["content"]["news_item"][0]
+    raise SystemExit(f"❌ 草稿箱里找不到 media_id：{media_id}\n   （可用 --list 查看现有草稿）")
+
+
+def update_draft_meta(token, media_id, **fields):
+    """原地更新草稿的元信息（标题/摘要/作者/原文链接），不动正文与图片。
+
+    ★ 为什么要单独做这个：只改一个标题时，没必要把 17 张图重新上传一遍。
+      正文里的图片已经是微信托管 URL，直接原样回传即可。
+    """
+    art = get_article(token, media_id)
+    # draft/update 要求带回完整 article；只覆盖指定字段
+    # 注意：不能用 fields.get(k, 默认值) —— key 存在但值为 None 时不会回落到默认值
+    article = {
+        "title": fields.get("title") or art.get("title", ""),
+        "author": fields.get("author") or art.get("author", "") or "",
+        "digest": fields.get("digest") or art.get("digest", ""),
+        "content": art.get("content", ""),
+        "content_source_url": fields.get("source_url") or art.get("content_source_url", "") or "",
+        "thumb_media_id": art.get("thumb_media_id", ""),
+        "need_open_comment": art.get("need_open_comment", 0),
+        "only_fans_can_comment": art.get("only_fans_can_comment", 0),
+    }
+    r = http_json(f"{API}/draft/update?access_token={token}",
+                  {"media_id": media_id, "index": 0, "articles": article})
+    if r.get("errcode") != 0:
+        raise SystemExit(f"❌ 更新草稿失败：{r}")
+    log(f"✅ 已更新草稿 {media_id}")
+    log(f"   标题：{article['title']}")
+    if fields.get("digest"):
+        log(f"   摘要：{article['digest'][:50]}…")
+    return article
+
+
 # ───────────────────── 主流程 ─────────────────────
 # 取值型选项：后面必须跟一个值，不是"子命令"
-VALUE_OPTS = ("--env", "--title", "--digest", "--cover", "--author", "--source-url")
+VALUE_OPTS = ("--env", "--title", "--digest", "--cover", "--author", "--source-url", "--update")
 
 
 def split_args(args):
@@ -319,6 +360,9 @@ def split_args(args):
             continue
         positional.append(a)
         i += 1
+    # --update 是"带值的子命令"
+    if "--update" in opts and sub is None:
+        sub = "--update"
     return sub, positional, opts
 
 
@@ -349,6 +393,18 @@ def main():
         if not positional:
             raise SystemExit("用法：publish.py --delete <media_id>")
         delete_draft(token, positional[0])
+        return
+
+    if sub == "--update":
+        mid = opts["--update"]
+        if not any(opts.get(k) for k in ("--title", "--digest", "--author", "--source-url")):
+            raise SystemExit(
+                "用法：publish.py --update <media_id> --title \"新标题\" [--digest \"新摘要\"]\n"
+                "   只改元信息，不重传图片。要换正文请重新跑一次普通推送。"
+            )
+        update_draft_meta(token, mid,
+                          title=opts.get("--title"), digest=opts.get("--digest"),
+                          author=opts.get("--author"), source_url=opts.get("--source-url"))
         return
 
     if not positional:
