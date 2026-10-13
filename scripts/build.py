@@ -124,14 +124,17 @@ def build_theme(theme, C):
     # 摘要（供 publish.py 读取）
     plain = re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", C.LEAD))[:120].replace('"', "&quot;")
 
+    # 标题：<title> 与 meta 里不能带标签（标题里写 <i> 会原样显示出来）
+    title_txt = re.sub(r"<[^>]+>", "", C.TITLE).replace('"', "&quot;")
+
     subline = C.SUBLINE_E if theme["name"] == E["name"] else C.SUBLINE
 
     return f'''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>{C.TITLE}</title>
-<meta name="wx-title" content="{C.TITLE.replace('"', '&quot;')}">
+<title>{title_txt}</title>
+<meta name="wx-title" content="{title_txt}">
 <meta name="wx-digest" content="{plain}">
 <style>
   body{{margin:0;padding:0;background:{theme["pagebg"]};}}

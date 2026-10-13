@@ -42,7 +42,12 @@
 """
 import json
 import os
+import re
 import sys
+
+# 中文（含全角标点、破折号、引号、省略号）按字折行；其余按词折行
+CJK = r"\u3000-\u303f\u4e00-\u9fff\uff00-\uffef\u2014\u2018\u2019\u201c\u201d\u2026"
+TOKEN_RE = re.compile(f"[{CJK}]|[^{CJK}\\s]+")
 
 # 字体候选（跨平台；优先带中文的字体，否则中文会渲染成方框）
 FONT_REGULAR = [
@@ -123,14 +128,28 @@ def rich_width(draw, text, font, sup_scale=0.68):
 
 
 def wrap_rich(draw, text, font, max_w):
-    """按宽度折行（兼容 {^} 标记，标记不占宽度）。"""
-    words, lines, cur = list(text), [], ""
-    for ch in words:
-        trial = cur + ch
-        if rich_width(draw, trial, font) > max_w and cur:
-            lines.append(cur); cur = ch
+    """按宽度折行（兼容 {^} 标记，标记不占宽度）。
+
+    ★ 必须区分中西文：
+      - 中文逐字折行
+      - 拉丁词按「词」折行（否则会出现 "si / ngle-cell" 这种从单词中间断开的丑行）
+    """
+    toks = TOKEN_RE.findall(text)
+    lines, cur = [], ""
+
+    def is_cjk(s):
+        return bool(re.match(f"[{CJK}]", s))
+
+    for tk in toks:
+        # 两个拉丁词之间才补空格
+        piece = tk
+        if cur and not is_cjk(tk) and not is_cjk(cur[-1]):
+            piece = " " + tk
+        if not cur or rich_width(draw, cur + piece, font) <= max_w:
+            cur += piece
         else:
-            cur = trial
+            lines.append(cur)
+            cur = tk
     if cur:
         lines.append(cur)
     return lines
