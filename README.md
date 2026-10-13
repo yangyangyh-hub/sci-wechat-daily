@@ -105,6 +105,7 @@ sci-wechat-daily/
 ├── scripts/
 │   ├── _env.py                    环境探测：找解释器、查依赖
 │   ├── figtools.py                PDF 提图 / 面板检测 / 拼接 / 像素自检
+│   ├── panel_guide.py             拼版大图切面板辅助（白缝检测 / 坐标网格 / 批量裁校对）
 │   ├── make_figures.py            封面信息卡 / 技术路线图 / 二维码处理
 │   ├── build.py                   内容文件 → 三套版式 HTML
 │   └── publish.py                 上传图片 + 建草稿

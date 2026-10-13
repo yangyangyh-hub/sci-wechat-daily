@@ -117,6 +117,30 @@ python "$SK/scripts/figtools.py" detect "<论文.pdf>" "<项目>/.cache/figs"
 打开 `.cache/figs/annot_p*.png`，**逐张核对面板编号**是否与字母标号（A/B/C）一一对应。
 坐标已写入 `figs/panels.json`。
 
+**★ 若正文页一张图都找不到**（`detect` 输出为空）—— 这是 **Accepted Manuscript** 版式：
+正文图排在**文末**，图注另集中在一处。30 秒判据：
+
+```python
+import pymupdf
+d = pymupdf.open(pdf)
+for i, pg in enumerate(d):
+    print(i + 1, len(pg.get_images(full=True)), len(pg.get_drawings()))
+```
+
+正文页位图数与绘图数**同时为 0** → 去文末找 `Figure N` 页（一页一张整图）。
+
+**★ 若 `detect` 只认出两三个面板** —— 那是「整张拼版图」（一页一张位图内含多个面板），
+白缝不贯通整行整列，自动切不准。改用 `panel_guide.py` 人工定框：
+
+```bash
+python "$SK/scripts/panel_guide.py" grid    "<大图>"                  # ① 粗看白缝
+python "$SK/scripts/panel_guide.py" overlay "<大图>" "<项目>/.cache/grid.png"  # ② ★ 叠坐标网格读坐标
+python "$SK/scripts/panel_guide.py" crop    "<boxes.json>" "<输出目录>" "<校对图.png>"  # ③ 批量裁+一次看完
+```
+
+> **别靠"看渲染图猜比例"。** 显示器缩放一变，估算的比例尺就不同，坐标必然来回返工。
+> 叠加坐标网格后一次就准。
+
 ### 第 2 步 · 裁切结果图
 
 按 `panels.json` 写 `spec.json`（格式见 `scripts/figtools.py` 顶部注释），然后：
@@ -289,3 +313,4 @@ python -m pip install pymupdf pillow numpy
 
 `assets/content_template.py` —— 内容文件空白模板（每篇复制一份）。
 `scripts/_env.py` —— 环境探测（找解释器、查依赖）。
+`scripts/panel_guide.py` —— 拼版大图切面板辅助（白缝检测 / 坐标网格 / 批量裁校对）。
