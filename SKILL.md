@@ -114,6 +114,20 @@ agent_created: true
 python "$SK/scripts/figtools.py" detect "<论文.pdf>" "<项目>/.cache/figs"
 ```
 
+**★ 读文本前先试一次 `page.get_text()`**。若读出来"没法看"，用 `pdf_text.py`：
+
+```bash
+python "$SK/scripts/pdf_text.py" "<论文.pdf>" "<项目>/.cache/plain.txt"
+```
+
+它能一次处理期刊 PDF 的三种常见坑（**都先查过、都实测过**）：
+
+| 症状 | 原因 | 处理 |
+|---|---|---|
+| 每个词单独成行 | LaTeX 排版，每词是独立文本对象 | 按坐标重组 |
+| `Introduction Agricultural` 这种串词 | 页边距的下载水印（**旋转 90°**）被并进正文行 | 用 `line["dir"]` 只保留水平文字 |
+| 左右栏被并成一句 | 先按 y 聚类、后分栏，顺序反了 | **必须先分栏、再聚类** |
+
 打开 `.cache/figs/annot_p*.png`，**逐张核对面板编号**是否与字母标号（A/B/C）一一对应。
 坐标已写入 `figs/panels.json`。
 
@@ -133,13 +147,19 @@ for i, pg in enumerate(d):
 白缝不贯通整行整列，自动切不准。改用 `panel_guide.py` 人工定框：
 
 ```bash
-python "$SK/scripts/panel_guide.py" grid    "<大图>"                  # ① 粗看白缝
+python "$SK/scripts/panel_guide.py" grid    "<大图>"                  # ① 粗看白缝（仅参考）
 python "$SK/scripts/panel_guide.py" overlay "<大图>" "<项目>/.cache/grid.png"  # ② ★ 叠坐标网格读坐标
 python "$SK/scripts/panel_guide.py" crop    "<boxes.json>" "<输出目录>" "<校对图.png>"  # ③ 批量裁+一次看完
 ```
 
 > **别靠"看渲染图猜比例"。** 显示器缩放一变，估算的比例尺就不同，坐标必然来回返工。
 > 叠加坐标网格后一次就准。
+>
+> **★ `grid` 给的候选边界不能直接用** —— 面板标题与坐标轴标签常落在"白缝"之外，
+> 照抄会裁掉标题（实测踩过）。**必须用 `overlay` 叠加坐标横线人工确认。**
+>
+> **★ 图例别丢**：多工具对比图靠颜色区分，图例是必需的。图例若在两行之间，
+> 把相邻行一并框进来。
 
 ### 第 2 步 · 裁切结果图
 
@@ -313,4 +333,5 @@ python -m pip install pymupdf pillow numpy
 
 `assets/content_template.py` —— 内容文件空白模板（每篇复制一份）。
 `scripts/_env.py` —— 环境探测（找解释器、查依赖）。
+`scripts/pdf_text.py` —— PDF 文本重组（LaTeX 逐词排版 / 旋转水印 / 双栏）。
 `scripts/panel_guide.py` —— 拼版大图切面板辅助（白缝检测 / 坐标网格 / 批量裁校对）。
