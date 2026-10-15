@@ -45,11 +45,9 @@ import sys
 
 FONT = ("-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif")
 
-# 文末 AI 声明。内容文件可用 AI_NOTE 覆盖；置空字符串可关闭。
-# 位置：论文信息块之后、「欢迎关注」之前（内容归属 → 声明 → 行动号召）。
-DEFAULT_AI_NOTE = (
-    "本文的文献搜集、整理与分析由人工完成，AI 仅参与辅助解读，最终内容经人工复核。"
-)
+# 文末 AI 声明：**默认不加**（2026-10-15 用户决定）。
+# 某篇需要时，在内容文件里写 AI_NOTE = "声明文字"；写成 "" 或不写都不加。
+DEFAULT_AI_NOTE = ""
 
 
 def load_content(path):
