@@ -23,6 +23,7 @@
     DISCUSS        讨论，通常 2 段
     CONCLUSION     结论，一段
     INFO           论文信息 [(标签, 值)]
+    AI_NOTE        AI 声明（文末一句，不写则用 DEFAULT_AI_NOTE）
     ACCOUNT        公众号名称
 
 设计原则：**文字层与皮肤分离**。
@@ -44,6 +45,12 @@ import sys
 
 FONT = ("-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif")
 
+# 文末 AI 声明。内容文件可用 AI_NOTE 覆盖；置空字符串可关闭。
+# 位置：论文信息块之后、「欢迎关注」之前（内容归属 → 声明 → 行动号召）。
+DEFAULT_AI_NOTE = (
+    "本文的文献搜集、整理与分析由人工完成，AI 仅参与辅助解读，最终内容经人工复核。"
+)
+
 
 def load_content(path):
     if not os.path.exists(path):
@@ -58,6 +65,8 @@ def load_content(path):
     mod.ROADMAP_IMG = getattr(mod, "ROADMAP_IMG", "图片/裁切/技术路线图.png")
     mod.CONCLUSION_IMG = getattr(mod, "CONCLUSION_IMG", "")
     mod.ACCOUNT = getattr(mod, "ACCOUNT", "")
+    # AI 声明：未定义则用默认文案；显式写成 "" 表示不要这段
+    mod.AI_NOTE = getattr(mod, "AI_NOTE", DEFAULT_AI_NOTE)
     # 二维码：支持 QR_IMG，也兼容旧字段名 QR
     mod.QR_IMG = getattr(mod, "QR_IMG", None) or getattr(mod, "QR", None) \
         or "图片/裁切/关注二维码_订阅号.jpg"
@@ -121,6 +130,9 @@ def build_theme(theme, C):
                  f'{theme["cap"](cap_text(getattr(C, "CONCLUSION_CAPTION", "机制总结图"), 
                                           ), True)}')
 
+    # 文末 AI 声明（内容文件把 AI_NOTE 写成 "" 即可关闭）
+    note_block = theme["note"](C.AI_NOTE) if C.AI_NOTE else ""
+
     # 摘要（供 publish.py 读取）
     plain = re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", C.LEAD))[:120].replace('"', "&quot;")
 
@@ -170,6 +182,7 @@ def build_theme(theme, C):
 {conc}
 
 {theme["info"](C.INFO)}
+{note_block}
 
 {theme["footer"](C.ACCOUNT, C.QR_IMG)}
 
@@ -213,6 +226,9 @@ B = {
         '<section style="font-size:13px;line-height:2;color:#dbe7ee;">'
         + "".join(f'<section><span style="color:#8fb0c4;">{k}</span>{v}</section>' for k, v in items)
         + '</section></section>'),
+    "note": lambda t: (
+        f'  <section style="padding:0 22px;"><section style="font-size:12.5px;line-height:1.75;color:#8b98a1;'
+        f'margin:16px 0 0;padding:12px 14px;background:#f4f6f7;border-left:3px solid #c9d3d9;letter-spacing:.2px;">{t}</section></section>'),
     "footer": lambda acc, qr: (
         f'  <section style="margin:30px 22px 0;text-align:center;">'
         f'<section style="font-size:15px;line-height:1.8;color:#5c6b74;margin:0 0 14px;letter-spacing:1px;">— 欢迎关注 —</section>'
@@ -252,6 +268,9 @@ D = {
         '<section style="font-size:13px;line-height:2;color:#dcebf4;">'
         + "".join(f'<section><span style="color:#9dc0d6;">{k}</span>{v}</section>' for k, v in items)
         + '</section></section></section>'),
+    "note": lambda t: (
+        f'  <section style="padding:0 22px;"><section style="font-size:12.5px;line-height:1.75;color:#8b9aa4;'
+        f'margin:16px 0 0;padding:13px 16px;background:#eef2f4;border-radius:8px;text-align:center;letter-spacing:.2px;">{t}</section></section>'),
     "footer": lambda acc, qr: (
         f'  <section style="margin:30px 22px 0;text-align:center;">'
         f'<section style="font-size:15px;line-height:1.8;color:#5c6b74;margin:0 0 14px;letter-spacing:1px;">— 欢迎关注 —</section>'
@@ -288,6 +307,9 @@ E = {
         '<section style="font-size:13px;line-height:2.05;color:#5d6a63;">'
         + "".join(f'<section><span style="color:#a3a79c;">{k}</span>{v}</section>' for k, v in items)
         + '</section></section>'),
+    "note": lambda t: (
+        f'  <section style="font-size:12.5px;line-height:1.8;color:#9a988f;margin:16px 0 0;padding:12px 14px;'
+        f'background:#f2efe7;border-left:3px solid #d3d9d2;letter-spacing:.2px;">{t}</section>'),
     "footer": lambda acc, qr: (
         f'  <section style="margin:30px 0 0;text-align:center;">'
         f'<section style="font-size:15px;line-height:1.8;color:#5c6b74;margin:0 0 14px;letter-spacing:1px;">— 欢迎关注 —</section>'
