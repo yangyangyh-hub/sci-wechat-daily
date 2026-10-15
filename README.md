@@ -115,6 +115,7 @@ sci-wechat-daily/
 ├── scripts/
 │   ├── _env.py                    环境探测：找解释器、查依赖
 │   ├── figtools.py                PDF 提图 / 面板检测 / 拼接 / 像素自检
+│   ├── find_figs.py               定位图注页与图注 y 坐标，判断位图 / 矢量 / Accepted Manuscript
 │   ├── panel_guide.py             拼版大图切面板辅助（白缝检测 / 坐标网格 / 批量裁校对）
 │   ├── make_figures.py            封面信息卡 / 技术路线图 / 二维码处理
 │   ├── build.py                   内容文件 → 三套版式 HTML
@@ -123,7 +124,7 @@ sci-wechat-daily/
 │   └── content_template.py        内容文件空白模板（每篇复制一份）
 └── references/
     ├── 写作规则.md                 写作规范、四步研究背景、数字核验
-    ├── 图片处理.md                 提图/拼接/自制图 详细步骤
+    ├── 图片处理.md                 提图/矢量主图裁剪/拼接/自制图 详细步骤
     └── 发布接口.md                 微信接口链路、错误码、白名单、安全须知
 ```
 
