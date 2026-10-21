@@ -152,7 +152,16 @@ def wrap_rich(draw, text, font, max_w):
             cur = tk
     if cur:
         lines.append(cur)
-    return lines
+
+    # ★ 避头点：标点不能落在行首，否则出现「/ ，锁定…」这种断行
+    BAD_HEAD = "，。、；：）】》」』”’％%！？·…"
+    for i in range(1, len(lines)):
+        while lines[i] and lines[i][0] in BAD_HEAD:
+            lines[i - 1] += lines[i][0]
+            lines[i] = lines[i][1:]
+        if not lines[i]:
+            lines[i] = ""
+    return [ln for ln in lines if ln]
 
 
 # ─────────────────────── 封面信息卡 ───────────────────────
@@ -180,6 +189,9 @@ def make_cover(spec):
     t_zh = ft_z
     en_lines = wrap_rich(d, spec.get("title_en", ""), t_en, inner)
     zh_lines = wrap_rich(d, spec.get("title_zh", ""), t_zh, inner)
+    # ★ 作者/单位行数必须按实际折行数算高度，否则多作者会把单位行压掉
+    au_lines = wrap_rich(d, spec.get("authors", ""), ft_b, inner)[:4]
+    af_lines = wrap_rich(d, spec.get("affils", ""), ft_s, inner)[:3]
 
     h = pad
     h += int(W * 0.052)                      # 期刊行
@@ -190,8 +202,9 @@ def make_cover(spec):
     h += int(W * 0.012)
     h += len(zh_lines) * int(W * 0.036)
     h += int(W * 0.030)
-    h += int(W * 0.020)                      # 作者
-    h += int(W * 0.062)                      # 单位两行
+    h += len(au_lines) * int(W * 0.023)      # 作者（按实际行数）
+    h += int(W * 0.016)                      # 作者与单位之间的留白
+    h += len(af_lines) * int(W * 0.031)      # 单位（按实际行数）
     h += int(W * 0.026)
     h += int(W * 0.024)                      # DOI 行
     h += pad
@@ -220,10 +233,11 @@ def make_cover(spec):
         y += int(W * 0.036)
     y += int(W * 0.030)
 
-    for line in wrap_rich(dr, spec.get("authors", ""), ft_b, inner)[:2]:
+    for line in au_lines:
         dr.text((pad, y), line, font=ft_b, fill=ink)
-        y += int(W * 0.020)
-    for line in wrap_rich(dr, spec.get("affils", ""), ft_s, inner)[:2]:
+        y += int(W * 0.023)
+    y += int(W * 0.016)
+    for line in af_lines:
         dr.text((pad, y), line, font=ft_s, fill=muted)
         y += int(W * 0.031)
     y += int(W * 0.026)
