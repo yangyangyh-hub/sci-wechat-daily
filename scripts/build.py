@@ -134,6 +134,11 @@ def build_theme(theme, C):
     # 摘要（供 publish.py 读取）
     plain = re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", C.LEAD))[:120].replace('"', "&quot;")
 
+    # ★ 微信 draft/add 的标题上限是 128 字节（GBK），超出直接报 45003 —— 生成时就提醒
+    _tb = len(C.TITLE.encode("gbk", errors="replace"))
+    if _tb > 128:
+        print(f"⚠️  标题 {_tb} 字节（GBK），超出微信上限 128 字节，draft/add 会报 45003；请精简后再发布")
+
     # 标题：<title> 与 meta 里不能带标签（标题里写 <i> 会原样显示出来）
     title_txt = re.sub(r"<[^>]+>", "", C.TITLE).replace('"', "&quot;")
 
