@@ -35,7 +35,7 @@ PDF  →  提图裁切 + 自制配图  →  写中文标准解读  →  生成 B
  ↓
 四、讨论          原文 Discussion 的目的、意义、未来展望
  ↓
-五、结论          一段话收束 + 原文机制总结图
+五、结论          一段话收束 + 原文示意图（无则不放，禁止自绘）
  ↓
 论文信息         期刊｜日期｜DOI｜第一作者｜通讯作者｜主要单位（全篇只出现一次）
  ↓
@@ -108,7 +108,7 @@ python "$SK/scripts/publish.py" "<项目>/版式B_期刊色带.html" --env "<凭
 
 ```
 sci-wechat-daily/
-├── SKILL.md                       主流程（八步，Agent 读这个）
+├── SKILL.md                       主流程（九步，Agent 读这个）
 ├── README.md                      本文件
 ├── LICENSE
 ├── .env.example                   凭据文件格式示例
