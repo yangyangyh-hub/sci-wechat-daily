@@ -28,17 +28,29 @@
   "width": 1400
 }
 
-── 路线图 spec.json ──────────────────────────────
+── 路线图 spec.json（2026-10-23 新版：每环节 3–4 条要点分行）────────
 {
   "out": "图片/裁切/技术路线图.png",
   "title": "研究思路与技术路线",
-  "steps": ["第一步做什么", "第二步做什么", "第三步做什么", "第四步做什么"],
-  "width": 1400
+  "stages": [
+    {"name": "玛咖粉成分分析", "bullets": ["常规营养成分", "总酚、总黄酮", "抗氧化活性", "酚酸与玛咖酰胺"]},
+    {"name": "饲养试验",       "bullets": ["40 头后备母猪", "均重 29 kg，随机分两组", "108 天，分两期饲养", "按栏算 DFI、FCR"]},
+    {"name": "屠宰与理化检测", "bullets": ["胴体与脏器重量", "背最长肌 pH、嫩度", "血液生化指标", "回肠食糜 pH、氨、SCFAs"]},
+    {"name": "肠道微生物分析", "bullets": ["三个时间点采粪样", "16S rRNA 测序", "alpha / beta 多样性", "门、科、属丰度比较"]}
+  ],
+  "width": 1100
 }
+
+★ 旧字段 `steps: ["...", ...]` 仍兼容（每环节一条长句），但**不再推荐**：
+一环节一长句会把字挤成一坨，手机上读不动（2026-10-23 用户返工）。
 
 ★ 上标写法：用 {^...} 包裹，脚本会判断字号并上移绘制。
   例："10{^9} CFU/mL"、"mg kg{^-1}"
   原因：微软雅黑没有 U+2079（⁹）等上标字形，直接写会渲染成方框。
+
+★ 字号不用手调：脚本按「微信正文显示宽度 677px」反推字号
+  （正文字号 = round(width × 12 / 677)），见 make_roadmap 里的 EFF_* 常量。
+  判据：图上看着大没用，要看 `字号 × 677 / 画布宽` 换算后的实际值 ≥ 12px。
 """
 import json
 import os
@@ -250,59 +262,161 @@ def make_cover(spec):
 
 
 # ─────────────────────── 技术路线图 ───────────────────────
+# ★ 字号换算基准（2026-10-23 定）
+#   微信正文里图片按约 677px 宽显示 —— 画布再宽也会被缩到这么宽。
+#   所以「图上字号」没有意义，要看换算后的实际值：实际字号 = 图上字号 × 677 / 画布宽。
+#   经验值（实测）：实际 ≥ 12px 才读得清；旧版 1080px 画布配 14px → 实际 8.6px，被判「字太小」。
+#   → 字号一律由下面的 EFF_* 目标值反推，别手填像素字号。
+WX_DISPLAY_W = 677
+EFF_TITLE = 21      # 大标题的实际字号目标
+EFF_BADGE = 16      # 编号数字
+EFF_STAGE = 14      # 环节名
+EFF_BODY = 12.5     # 要点正文
+
+
+def _bullets_of(stage):
+    """兼容两种写法：新 {name, bullets} / 旧 "一整句"。"""
+    if isinstance(stage, dict):
+        return str(stage.get("name", "")), list(stage.get("bullets", []))
+    return "", [stage]
+
+
+def _rebalance(draw, lines, font, min_tail=None):
+    """★ 孤行回填：末行太短（1–2 字）时，把上一行末尾的字符/词挪下来。
+    中文按单字挪；拉丁词整词挪，不把单词拆断。"""
+    if min_tail is None:
+        min_tail = getattr(font, "size", 16) * 1.3
+    latin = r"[A-Za-z0-9/%·+]"
+    while len(lines) >= 2 and _text_w(draw, lines[-1], font) < min_tail:
+        prev = lines[-2]
+        if not prev:
+            break
+        if re.search(latin + r"$", prev) and re.search(latin + r"$", prev[:-1]):
+            m = re.search(r"(" + latin + r"+)\s*$", prev)   # 拉丁词整词回填（注意要带捕获组）
+            if not m or m.start() == 0:
+                break
+            moved, newprev = m.group(1), prev[: m.start()].rstrip()
+        else:                                              # 中文单字回填
+            moved, newprev = prev[-1], prev[:-1].rstrip()
+            if not newprev:
+                break
+        sep = " " if (re.search(latin + r"$", newprev) and re.match(latin, moved)) else ""
+        lines[-2] = newprev
+        lines[-1] = moved + sep + lines[-1]
+    return [ln for ln in lines if ln]
+
+
+def wrap_keep(draw, text, font, max_w):
+    """按宽度折行并保留原空格；ASCII 词串不断行；末尾孤字回填上一行。"""
+    toks = re.findall(r"[A-Za-z0-9/%·+]+|\s+|\S", text)
+    lines, cur = [], ""
+    for tk in toks:
+        if tk.isspace():
+            if cur and _text_w(draw, cur + tk, font) <= max_w:
+                cur += tk
+            continue
+        trial = cur + tk
+        if not cur or _text_w(draw, trial, font) <= max_w:
+            cur = trial
+        else:
+            lines.append(cur.rstrip())
+            cur = tk
+    if cur.strip():
+        lines.append(cur.rstrip())
+    lines = _rebalance(draw, lines, font)
+    # ★ 避头点：标点不能落在行首（与 wrap_rich 同规则），否则出现「、 FCR」这种断行
+    BAD_HEAD = "，。、；：）】》」』”’％%！？·…"
+    for i in range(1, len(lines)):
+        while lines[i] and lines[i][0] in BAD_HEAD:
+            lines[i - 1] += lines[i][0]
+            lines[i] = lines[i][1:]
+    return [ln for ln in lines if ln]
+
+
 def make_roadmap(spec):
     from PIL import Image, ImageDraw
-    W = spec.get("width", 1400)
-    steps = spec["steps"]
-    n = len(steps)
-    pad = int(W * 0.045)
-    gap = int(W * 0.022)
-    box_w = (W - pad * 2 - gap * (n - 1)) // n
 
-    ft_t = _font(int(W * 0.026), bold=True)
-    ft_s = _font(int(W * 0.019))
-    ft_n = _font(int(W * 0.024), bold=True)
+    W = spec.get("width", 1100)
+    stages = spec.get("stages") or spec.get("steps") or []
+    if not stages:
+        raise SystemExit("❌ roadmap spec 里既没有 stages 也没有 steps")
+    n = len(stages)
 
-    inner_w = box_w - int(W * 0.028)
+    # 字号：按 677px 显示宽度反推（见上方 EFF_* 注释）
+    ft_t = _font(int(W * EFF_TITLE / WX_DISPLAY_W), bold=True)
+    ft_n = _font(int(W * EFF_BADGE / WX_DISPLAY_W), bold=True)
+    ft_s = _font(int(W * EFF_STAGE / WX_DISPLAY_W), bold=True)
+    ft_b = _font(int(W * EFF_BODY / WX_DISPLAY_W))
+
+    MARGIN = int(W * 0.040)
+    GAP = int(W * 0.024)
+    box_w = (W - MARGIN * 2 - GAP * (n - 1)) // n
+    pad_in = int(W * 0.022)
+    if pad_in > box_w * 0.18:                      # 环节多、卡片窄时别让内边距吃掉版面
+        pad_in = max(int(W * 0.016), int(box_w * 0.16))
+    inner_w = box_w - pad_in * 2
+
     tmp = Image.new("RGB", (10, 10))
     d = ImageDraw.Draw(tmp)
 
-    wrapped = [wrap_rich(d, s, ft_s, inner_w) for s in steps]
-    max_lines = max(len(w) for w in wrapped)
-    line_h = int(W * 0.030)
-    box_h = int(W * 0.052) + max_lines * line_h + int(W * 0.022)
+    # ── 预估布局：先把每个环节的要点折行，"卡片高度由最长那一列决定" ──
+    laid, max_rows = [], 1
+    line_step = int(ft_b.size * 1.95)
+    name_step = int(ft_s.size * 1.5)
+    for st in stages:
+        name, bullets = _bullets_of(st)
+        nm_lines = wrap_keep(d, name, ft_s, inner_w - 2 * int(ft_n.size)) if name else []
+        bl = []
+        for b in bullets:
+            first_w = _text_w(d, "· ", ft_b)
+            lines = wrap_keep(d, b, ft_b, inner_w - first_w)
+            bl.append(lines)
+        total = max(len(nm_lines) * 2, 2) + sum(len(x) for x in bl)   # 环节名至少占 2 行高
+        max_rows = max(max_rows, total)
+        laid.append((name, nm_lines, bl))
 
-    H = int(W * 0.052) + int(W * 0.030) + box_h + int(W * 0.040)
+    badge_d = 2 * int(W * 0.018)
+    name_h = max(badge_d, max(len(nm) * name_step for _, nm, _ in laid) if laid else badge_d)
+    head_h = int(name_h + W * 0.016)               # 编号圆 + 环节名（含下留白）
+    top_y = int(W * 0.030) + int(ft_t.size * 1.9)
+    box_h = head_h + max_rows * line_step + int(W * 0.026)
+    H = top_y + box_h + int(W * 0.038)
+
     im = Image.new("RGB", (W, H), (255, 255, 255))
     dr = ImageDraw.Draw(im)
-
-    dr.text((pad, int(W * 0.030)), spec.get("title", "研究思路与技术路线"),
+    dr.text((MARGIN, int(W * 0.030)), spec.get("title", "研究思路与技术路线"),
             font=ft_t, fill=(31, 46, 58))
 
-    top = int(W * 0.052) + int(W * 0.030)
     accent = (45, 106, 143)
-
-    for i, (step, lines) in enumerate(zip(steps, wrapped)):
-        x = pad + i * (box_w + gap)
-        # 卡片
-        dr.rounded_rectangle([x, top, x + box_w, top + box_h], radius=int(W * 0.012),
-                             fill=(247, 250, 252), outline=(206, 220, 230), width=2)
-        # 编号圆
-        r = int(W * 0.021)
-        cx, cy = x + int(W * 0.030), top + int(W * 0.032)
+    for i, (name, nm_lines, bullets) in enumerate(laid):
+        x = MARGIN + i * (box_w + GAP)
+        dr.rounded_rectangle([x, top_y, x + box_w, top_y + box_h], radius=int(W * 0.014),
+                             fill=(238, 244, 249), outline=(193, 214, 231), width=2)
+        # 编号圆 + 环节名（名字太长时换行，与编号圆左对齐排列）
+        r = int(W * 0.018)
+        cx, cy = x + pad_in + r, top_y + int(W * 0.016) + r
         dr.ellipse([cx - r, cy - r, cx + r, cy + r], fill=accent)
         num = str(i + 1)
-        dr.text((cx - dr.textlength(num, font=ft_n) / 2, cy - r * 0.82),
-                num, font=ft_n, fill=(255, 255, 255))
-        # 文字
-        ty = top + int(W * 0.052)
-        for ln in lines:
-            draw_rich(dr, x + int(W * 0.016), ty, ln, ft_s, (63, 75, 82))
-            ty += line_h
+        dr.text((cx - dr.textlength(num, font=ft_n) / 2, cy - r * 0.80), num,
+                font=ft_n, fill=(255, 255, 255))
+        nx = cx + r + int(W * 0.012)
+        ny = cy - int(ft_s.size * 0.60)
+        for ln in nm_lines or []:
+            draw_rich(dr, nx, ny, ln, ft_s, (23, 57, 77))
+            ny += name_step
+        # 要点分行（首行带圆点，续行缩进对齐圆点文字）
+        ty = top_y + head_h
+        indent = _text_w(dr, "· ", ft_b)
+        for lines in bullets:
+            for j, ln in enumerate(lines):
+                if j == 0:
+                    draw_rich(dr, x + pad_in, ty, "· ", ft_b, (47, 58, 66))
+                draw_rich(dr, x + pad_in + indent, ty, ln, ft_b, (47, 58, 66))
+                ty += line_step
         # 箭头
         if i < n - 1:
-            ax = x + box_w + gap // 2
-            ay = top + box_h // 2
+            ax = x + box_w + GAP // 2
+            ay = top_y + box_h // 2
             a = int(W * 0.010)
             dr.polygon([(ax - a, ay - a), (ax + a, ay), (ax - a, ay + a)], fill=accent)
 

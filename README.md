@@ -119,7 +119,8 @@ sci-wechat-daily/
 │   ├── panel_guide.py             拼版大图切面板辅助（白缝检测 / 坐标网格 / 批量裁校对）
 │   ├── make_figures.py            封面信息卡 / 技术路线图 / 二维码处理
 │   ├── build.py                   内容文件 → 三套版式 HTML
-│   └── publish.py                 上传图片 + 建草稿
+│   ├── publish.py                 上传图片 + 建草稿
+│   └── density_check.py           信息密度自检（数字密度/并列词/思路四层），替代字数核对
 ├── assets/
 │   └── content_template.py        内容文件空白模板（每篇复制一份）
 └── references/
